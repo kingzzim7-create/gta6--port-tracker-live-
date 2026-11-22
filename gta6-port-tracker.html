@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Repo Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: plain, factual live monitor — real GitHub numbers only, no fake progress bars
+   IDEA: a metro map — each repo is a coloured line, each commit a station
+   PICTURE: the merged commit line at top, stations coloured by repo
+   COLOUR and TYPE: white / night #0e1116, line colours red, blue, amber, green; Figtree
+   LAYOUT: header + status, three repo cards, merged commit line, settings */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0e1116);--ink:light-dark(#111,#eceff3);--mute:light-dark(#5b6270,#9aa3b2);--line:light-dark(#e3e5ea,#252b35);--card:light-dark(#f6f7f9,#161b23);
+--c0:#e6261f;--c1:#0a5cff;--c2:#ffb400;--c3:#00a05a}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Figtree,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,4vw,48px) max(5vw,16px);max-width:1240px;margin:auto}
+h1{font-weight:800;font-size:clamp(28px,5vw,44px);line-height:1.05;margin:0 0 8px;text-wrap:balance}
+h2{font-size:20px;margin:0 0 12px}
+.sub{color:var(--mute);margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:14px;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mute)}
+.dot.live{background:var(--c3);animation:p 2s infinite}
+@keyframes p{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.dot.live{animation:none}}
+button,input,select{font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:0 14px}
+button{cursor:pointer;font-weight:600}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+:focus-visible{outline:3px solid var(--c1);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;border-top:6px solid var(--lc)}
+.card h3{margin:0;font-size:19px;overflow-wrap:anywhere}
+.card h3 a{color:inherit}
+.desc{color:var(--mute);font-size:14px;margin:4px 0 12px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.stats div{text-align:right}.stats b{display:block;font-size:20px}.stats span{font-size:13px;color:var(--mute)}
+.status{font-weight:600;font-size:15px}
+.st-hot{color:var(--c3)}.st-warm{color:var(--c2)}.st-cold{color:var(--mute)}.st-err{color:var(--c0)}
+.commits{list-style:none;margin:10px 0 0;padding:0;font-size:14px}
+.commits li{padding:6px 0;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between}
+.commits a{color:inherit;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commits time,.when{color:var(--mute);white-space:nowrap}
+.new{background:var(--c2);color:#111;border-radius:6px;padding:0 6px;font-size:12px;font-weight:800;margin-right:4px}
+.alt{font-size:13px;color:var(--mute);margin-top:10px}
+.alt select{min-height:36px;font-size:14px;width:100%;margin-top:4px}
+/* metro line */
+.metro{position:relative;padding-left:34px}
+.metro::before{content:"";position:absolute;left:12px;top:8px;bottom:8px;width:6px;border-radius:3px;background:var(--line)}
+.stop{position:relative;padding:8px 0}
+.stop::before{content:"";position:absolute;left:-30px;top:12px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:5px solid var(--lc)}
+.stop .r{font-weight:800;color:var(--lc);font-size:13px}
+.stop a{color:inherit}
+.empty{color:var(--mute);padding:12px 0}
+details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 18px}
+summary{cursor:pointer;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.row input{flex:1 1 220px}
+.note{font-size:14px;color:var(--mute)}
+@media(max-width:600px){.stats b{font-size:17px}}
+</style>
+</head>
+<body>
+<header class="band">
+  <h1>GTA 6 port repos — live tracker</h1>
+  <p class="sub">Real activity from GitHub's public API: commits, releases, stars and issues. Refreshes on its own.</p>
+  <div class="bar">
+    <span class="pill"><span class="dot" id="liveDot"></span><span id="lastUp">Not loaded yet</span></span>
+    <span class="pill" id="nextUp">—</span>
+    <span class="pill" id="rate">API: —</span>
+    <button class="primary" id="refreshBtn">Refresh now</button>
+  </div>
+</header>
+
+<section class="band" style="padding-top:0">
+  <div class="grid" id="cards"></div>
+</section>
+
+<section class="band" style="padding-top:0">
+  <h2>Latest commits, all projects</h2>
+  <div class="metro" id="metro"><div class="empty">Loading…</div></div>
+</section>
+
+<section class="band" style="padding-top:0">
+  <details id="settings">
+    <summary>Settings: which repos, refresh speed, GitHub token</summary>
+    <p class="note">Each entry can be a search word (like <code>leonida</code>) or an exact <code>owner/repo</code>. Search words pick the most recently updated repo with that name; use the dropdown on a card to switch if it picked the wrong one.</p>
+    <div class="row"><input id="repoInput" aria-label="Repos, comma separated"><button id="saveRepos">Save repos</button></div>
+    <p class="note">Without a token GitHub allows 60 requests an hour, so the page refreshes every 10 minutes. Add a free token (github.com → Settings → Developer settings → Fine-grained token, no permissions needed) to refresh every minute. It stays in this browser only.</p>
+    <div class="row"><input id="tokenInput" type="password" placeholder="Optional GitHub token" aria-label="GitHub token"><button id="saveToken">Save token</button></div>
+  </details>
+</section>
+
+<script>
+{
+const DEFAULTS = ['R0Y00/Xbox2Windows','ItsNotRexed/Leonida','ivall/xcl'];
+const COLORS = ['var(--c0)','var(--c1)','var(--c2)','var(--c3)'];
+const store = {
+  get(k,d){try{const v=localStorage.getItem('gta6trk2_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('gta6trk2_'+k,JSON.stringify(v))}catch(e){}}
+};
+let entries = store.get('entries', DEFAULTS);
+let resolved = store.get('resolved', {});   // search word -> owner/repo
+let seen = store.get('seen', {});           // owner/repo -> newest sha seen last time
+let token = store.get('token', '');
+let timer = null, nextAt = 0, rateInfo = '';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = iso => {
+  if(!iso) return '—';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if(s < 60) return 'just now';
+  if(s < 3600) return Math.floor(s/60) + 'm ago';
+  if(s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+};
+const fmt = n => n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(n ?? 0);
+
+async function gh(path){
+  const headers = {'Accept':'application/vnd.github+json'};
+  if(token) headers.Authorization = 'Bearer ' + token;
+  let r;
+  try{ r = await fetch('https://api.github.com' + path, {headers}); }
+  catch(e){ throw new Error("Can't reach GitHub from here. Open this file in Chrome itself (not a preview or file viewer), or host it on GitHub Pages."); }
+  const left = r.headers.get('x-ratelimit-remaining'), lim = r.headers.get('x-ratelimit-limit'), reset = r.headers.get('x-ratelimit-reset');
+  if(left !== null){ rateInfo = `API: ${left}/${lim} left`; if(left === '0' && reset) rateInfo += ` · resets ${new Date(reset*1000).toLocaleTimeString()}`; }
+  if(!r.ok){ const e = new Error(r.status === 404 ? 'Repo not found (deleted, renamed or private)' : r.status === 403 ? 'Rate limit hit — add a token in Settings' : 'GitHub error ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+
+async function candidates(word){
+  const q = encodeURIComponent(word + ' in:name');
+  const res = await gh(`/search/repositories?q=${q}&sort=updated&order=desc&per_page=6`);
+  return res.items.map(i => i.full_name);
+}
+
+async function loadOne(entry, idx){
+  const color = COLORS[idx % COLORS.length];
+  let full = entry.includes('/') ? entry : resolved[entry];
+  let alts = store.get('alts_' + entry, []);
+  if(!full){
+    alts = await candidates(entry);
+    store.set('alts_' + entry, alts);
+    if(!alts.length) throw Object.assign(new Error(`No public GitHub repo named "${entry}" found`), {entry, color});
+    full = alts[0]; resolved[entry] = full; store.set('resolved', resolved);
+  }
+  const [repo, commits, releases] = await Promise.all([
+    gh(`/repos/${full}`),
+    gh(`/repos/${full}/commits?per_page=6`).catch(() => []),
+    gh(`/repos/${full}/releases?per_page=1`).catch(() => [])
+  ]);
+  return {entry, full, color, repo, commits: Array.isArray(commits) ? commits : [], release: releases[0], alts};
+}
+
+function statusOf(iso){
+  const h = (Date.now() - new Date(iso)) / 3.6e6;
+  if(h < 24) return ['st-hot','Active today'];
+  if(h < 24*7) return ['st-warm','Active this week'];
+  return ['st-cold','Quiet for ' + Math.floor(h/24) + ' days'];
+}
+
+function card(d){
+  if(d.error) return `<article class="card" style="--lc:${d.color}"><h3>${esc(d.entry)}</h3><p class="status st-err">${esc(d.error)}</p><p class="desc">Try an exact owner/repo in Settings.</p></article>`;
+  const {repo, commits, release, full, entry, alts} = d;
+  const last = commits[0]?.commit?.committer?.date || repo.pushed_at;
+  const [cls, label] = statusOf(last);
+  const prevSha = seen[full];
+  let isNew = !!prevSha;
+  const list = commits.map(c => {
+    if(c.sha === prevSha) isNew = false;
+    const msg = (c.commit.message || '').split('\n')[0];
+    return `<li><a href="${esc(c.html_url)}" title="${esc(msg)}">${isNew ? '<span class="new">NEW</span>' : ''}${esc(msg)}</a><time>${ago(c.commit.committer?.date)}</time></li>`;
+  }).join('');
+  const picker = !entry.includes('/') && alts.length > 1
+    ? `<label class="alt">Matched search "${esc(entry)}" — wrong repo? Pick another:<select data-entry="${esc(entry)}">${alts.map(a => `<option ${a===full?'selected':''}>${esc(a)}</option>`).join('')}</select></label>` : '';
+  return `<article class="card" style="--lc:${d.color}">
+    <h3><a href="${esc(repo.html_url)}">${esc(full)}</a></h3>
+    <p class="desc">${esc(repo.description || 'No description')}</p>
+    <div class="status ${cls}">${label} · last commit ${ago(last)}</div>
+    <div class="stats">
+      <div><b>${fmt(repo.stargazers_count)}</b><span>stars</span></div>
+      <div><b>${fmt(repo.forks_count)}</b><span>forks</span></div>
+      <div><b>${fmt(repo.open_issues_count)}</b><span>open issues</span></div>
+      <div><b>${release ? esc(release.tag_name) : '—'}</b><span>${release ? ago(release.published_at) : 'no release'}</span></div>
+    </div>
+    ${repo.archived ? '<p class="status st-err">Archived by owner</p>' : ''}
+    <ul class="commits">${list || '<li class="empty">No commits visible</li>'}</ul>
+    ${picker}
+  </article>`;
+}
+
+function metro(data){
+  const all = data.filter(d => !d.error).flatMap(d => d.commits.map(c => ({d, c})));
+  all.sort((a,b) => new Date(b.c.commit.committer?.date) - new Date(a.c.commit.committer?.date));
+  if(!all.length) return '<div class="empty">No commits to show yet.</div>';
+  return all.slice(0, 15).map(({d, c}) => `<div class="stop" style="--lc:${d.color}">
+    <div class="r">${esc(d.full)}</div>
+    <a href="${esc(c.html_url)}">${esc((c.commit.message||'').split('\n')[0])}</a>
+    <div class="when">${esc(c.commit.author?.name || c.author?.login || '')} · ${ago(c.commit.committer?.date)}</div></div>`).join('');
+}
+
+async function refresh(){
+  $('refreshBtn').disabled = true; $('lastUp').textContent = 'Checking GitHub…';
+  const data = await Promise.all(entries.map((e, i) => loadOne(e, i).catch(err => ({entry: e, color: COLORS[i % COLORS.length], error: err.message}))));
+  $('cards').innerHTML = data.map(card).join('');
+  $('metro').innerHTML = metro(data);
+  data.forEach(d => { if(!d.error && d.commits[0]) seen[d.full] = d.commits[0].sha; });
+  store.set('seen', seen);
+  $('lastUp').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  $('liveDot').classList.toggle('live', !data.every(d => d.error));
+  $('rate').textContent = rateInfo || 'API: —';
+  $('refreshBtn').disabled = false;
+  schedule();
+}
+
+function schedule(){
+  clearTimeout(timer);
+  const ms = (token ? 1 : 10) * 60000;
+  nextAt = Date.now() + ms;
+  timer = setTimeout(refresh, ms);
+}
+setInterval(() => {
+  const s = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
+  $('nextUp').textContent = nextAt ? `Next check in ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}` : '—';
+}, 1000);
+
+$('refreshBtn').addEventListener('click', refresh);
+$('cards').addEventListener('change', e => {
+  const sel = e.target.closest('select[data-entry]'); if(!sel) return;
+  resolved[sel.dataset.entry] = sel.value; store.set('resolved', resolved); refresh();
+});
+$('repoInput').value = entries.join(', ');
+$('tokenInput').value = token;
+$('saveRepos').addEventListener('click', () => {
+  entries = $('repoInput').value.split(',').map(s => s.trim()).filter(Boolean);
+  if(!entries.length) entries = DEFAULTS.slice();
+  store.set('entries', entries); refresh();
+});
+$('saveToken').addEventListener('click', () => { token = $('tokenInput').value.trim(); store.set('token', token); refresh(); });
+document.addEventListener('visibilitychange', () => { if(!document.hidden && Date.now() > nextAt) refresh(); });
+
+refresh();
+}
+</script>
+</body>
+</html>
