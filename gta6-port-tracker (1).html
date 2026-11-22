@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0712">
+<title>GTA6 Port Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: neon ops board, like the user's reference — but every number is real
+   IDEA: a glowing progress rail; each repo is a coloured signal line
+   PICTURE: 24-hour activity bars per repo + a neon commit timeline
+   COLOUR and TYPE: deep violet-black, magenta / cyan / amber signals; Chakra Petch + Inter
+   LAYOUT: header, pulse strip, repo cards, timeline, settings — phone first */
+:root{color-scheme:dark;--bg:#0b0712;--panel:#140e1f;--panel2:#1b1429;--line:#2a2140;--ink:#f1ecfa;--mute:#9a8fb3;
+--a:#ff3ea5;--b:#22d3ee;--c:#ffb020;--ok:#3ef08a}
+*{box-sizing:border-box;min-width:0}
+html{background:var(--bg)}
+body{margin:0;color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;
+background:radial-gradient(900px 500px at 85% -10%,#3a0f4a55,transparent 60%),radial-gradient(700px 400px at -10% 30%,#0e3a4a40,transparent 60%),var(--bg);min-height:100vh}
+.wrap{max-width:1100px;margin:auto;padding:22px max(4vw,14px) 40px}
+.kick{font:600 12px/1 Inter;letter-spacing:.02em;color:var(--mute);display:flex;align-items:center;gap:8px}
+h1{font:700 clamp(30px,8vw,52px)/1.02 'Chakra Petch',sans-serif;margin:10px 0 6px;
+background:linear-gradient(90deg,#ff7ac6,var(--a) 40%,#b44dff);-webkit-background-clip:text;background-clip:text;color:transparent;
+filter:drop-shadow(0 0 18px #ff3ea555)}
+.sub{color:var(--mute);margin:0 0 16px;max-width:60ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.live{background:var(--ok);box-shadow:0 0 0 0 #3ef08a88;animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px #3ef08a00}}
+button,input,select{font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 14px}
+button{cursor:pointer;font-weight:600}
+.btn{height:36px;min-height:36px;font-size:13px;background:linear-gradient(90deg,var(--a),#b44dff);border:0;color:#fff;box-shadow:0 0 16px #ff3ea555}
+.btn:disabled{opacity:.5}
+:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+h2{font:700 20px/1.2 'Chakra Petch',sans-serif;margin:30px 0 12px;letter-spacing:.01em}
+/* pulse strip */
+.strip{display:grid;gap:8px;margin-top:20px}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
+.srow .n{font:700 15px 'Chakra Petch',system-ui,sans-serif;color:var(--lc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .t{font-size:13px;color:var(--mute);white-space:nowrap;text-align:right}
+.spark{grid-column:1/-1;display:flex;gap:2px;align-items:flex-end;height:28px}
+.spark i{flex:1;background:var(--lc);border-radius:2px 2px 0 0;opacity:.9;min-height:2px}
+.spark i.z{opacity:.15}
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:14px}
+.card{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:16px;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:var(--lc);box-shadow:0 0 14px var(--lc)}
+.top{display:flex;align-items:center;gap:10px}
+.node{flex:none;width:12px;height:12px;border-radius:50%;background:var(--lc);box-shadow:0 0 10px var(--lc)}
+.card h3{margin:0;font:700 18px/1.2 'Chakra Petch',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card h3 a{color:inherit;text-decoration:none}
+.owner{color:var(--mute);font-weight:500}
+.desc{color:var(--mute);font-size:13px;margin:8px 0 12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid currentColor}
+.hot{color:var(--ok)}.warm{color:var(--c)}.cold{color:var(--mute)}.err{color:#ff6b6b}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:14px 0}
+.stat{background:#ffffff08;border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+.stat b{display:block;font:700 17px/1.1 'Chakra Petch',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat span{font-size:11px;color:var(--mute)}
+.commits{list-style:none;margin:0;padding:0}
+.commits li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.commits a{color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commits time{color:var(--mute);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.new{display:inline-block;background:var(--c);color:#1a1000;border-radius:5px;padding:0 5px;font-size:10px;font-weight:800;margin-right:6px;vertical-align:1px}
+.alt{display:block;font-size:12px;color:var(--mute);margin-top:12px}
+.alt select{min-height:38px;font-size:14px;width:100%;margin-top:4px}
+/* timeline */
+.tl{position:relative;padding-left:30px}
+.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--a),var(--b),var(--c));box-shadow:0 0 10px #ff3ea566;border-radius:2px}
+.ev{position:relative;padding:10px 12px;margin-bottom:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.ev::before{content:"";position:absolute;left:-27px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:3px solid var(--lc);box-shadow:0 0 10px var(--lc)}
+.ev .r{font:700 12px 'Chakra Petch',system-ui,sans-serif;color:var(--lc)}
+.ev a{display:block;color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.ev .w{font-size:12px;color:var(--mute)}
+.empty{color:var(--mute);padding:10px 0}
+details{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:600;min-height:28px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.row input{flex:1 1 220px}
+.note{font-size:13px;color:var(--mute)}
+code{color:#ff9ad5}
+footer{margin-top:22px;font-size:12px;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){.dot.live{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick"><span class="dot" id="liveDot"></span><span id="lastUp">Connecting to GitHub…</span></div>
+  <h1>GTA 6 PC port tracker</h1>
+  <p class="sub">Live commit activity from the three main recompilation projects, straight from GitHub.</p>
+  <div class="chips">
+    <span class="chip" id="nextUp">Next check —</span>
+    <span class="chip" id="rate">API —</span>
+    <button class="btn" id="refreshBtn">Refresh now</button>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <h2>Projects</h2>
+  <div class="grid" id="cards"></div>
+
+  <h2>Latest commits, all projects</h2>
+  <div class="tl" id="metro"><div class="empty">Loading…</div></div>
+
+  <details id="settings">
+    <summary>Settings</summary>
+    <p class="note">Repos to track, as <code>owner/repo</code> or a search word, separated by commas.</p>
+    <div class="row"><input id="repoInput" aria-label="Repos, comma separated"><button id="saveRepos">Save</button></div>
+    <p class="note">Without a token GitHub allows 60 requests an hour, so this checks every 10 minutes. A free token (GitHub → Settings → Developer settings → Fine-grained token, no permissions) makes it check every minute. It stays in this browser only.</p>
+    <div class="row"><input id="tokenInput" type="password" placeholder="Optional GitHub token" aria-label="GitHub token"><button id="saveToken">Save</button></div>
+  </details>
+  <footer>Bars show commits per hour over the last 24 hours. Data: GitHub public API.</footer>
+</div>
+
+<script>
+{
+const DEFAULTS = ['R0Y00/Xbox2Windows','ItsNotRexed/Leonida','ivall/xcl'];
+const COLORS = ['var(--a)','var(--b)','var(--c)','var(--ok)'];
+const store = {
+  get(k,d){try{const v=localStorage.getItem('gta6trk2_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('gta6trk2_'+k,JSON.stringify(v))}catch(e){}}
+};
+let entries = store.get('entries', DEFAULTS);
+let resolved = store.get('resolved', {});
+let seen = store.get('seen', {});
+let token = store.get('token', '');
+let timer = null, nextAt = 0, rateInfo = '';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = iso => {
+  if(!iso) return '—';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if(s < 60) return 'now';
+  if(s < 3600) return Math.floor(s/60) + 'm';
+  if(s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+};
+const fmt = n => n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'k' : String(n ?? 0);
+const cdate = c => c.commit?.committer?.date || c.commit?.author?.date;
+
+async function gh(path){
+  const headers = {'Accept':'application/vnd.github+json'};
+  if(token) headers.Authorization = 'Bearer ' + token;
+  let r;
+  try{ r = await fetch('https://api.github.com' + path, {headers}); }
+  catch(e){ throw new Error("Can't reach GitHub from here. Open this page in Chrome itself."); }
+  const left = r.headers.get('x-ratelimit-remaining'), lim = r.headers.get('x-ratelimit-limit'), reset = r.headers.get('x-ratelimit-reset');
+  if(left !== null){ rateInfo = `API ${left}/${lim}`; if(left === '0' && reset) rateInfo += ` · resets ${new Date(reset*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`; }
+  if(!r.ok) throw new Error(r.status === 404 ? 'Repo not found — deleted, renamed or private' : r.status === 403 ? 'Rate limit hit — add a token in Settings' : 'GitHub error ' + r.status);
+  return r.json();
+}
+
+async function loadOne(entry, idx){
+  const color = COLORS[idx % COLORS.length];
+  let full = entry.includes('/') ? entry : resolved[entry];
+  let alts = store.get('alts_' + entry, []);
+  if(!full){
+    const res = await gh(`/search/repositories?q=${encodeURIComponent(entry + ' in:name')}&sort=updated&order=desc&per_page=6`);
+    alts = res.items.map(i => i.full_name); store.set('alts_' + entry, alts);
+    if(!alts.length) throw new Error(`No public repo named "${entry}" found`);
+    full = alts[0]; resolved[entry] = full; store.set('resolved', resolved);
+  }
+  const [repo, commits, releases] = await Promise.all([
+    gh(`/repos/${full}`),
+    gh(`/repos/${full}/commits?per_page=60`).catch(() => []),
+    gh(`/repos/${full}/releases?per_page=1`).catch(() => [])
+  ]);
+  return {entry, full, color, repo, commits: Array.isArray(commits) ? commits : [], release: releases[0], alts};
+}
+
+function buckets(commits){
+  const b = Array(24).fill(0), now = Date.now();
+  commits.forEach(c => { const h = Math.floor((now - new Date(cdate(c))) / 3.6e6); if(h >= 0 && h < 24) b[23 - h]++; });
+  return b;
+}
+function state(iso){
+  const h = (Date.now() - new Date(iso)) / 3.6e6;
+  if(h < 24) return ['hot','Active today'];
+  if(h < 168) return ['warm','Active this week'];
+  return ['cold','Quiet ' + Math.floor(h/24) + 'd'];
+}
+
+function stripRow(d){
+  if(d.error) return `<div class="srow" style="--lc:${d.color}"><span class="n">${esc(d.entry)}</span><span class="t err">offline</span></div>`;
+  const b = buckets(d.commits), max = Math.max(1, ...b), total = b.reduce((a,x) => a + x, 0);
+  return `<div class="srow" style="--lc:${d.color}">
+    <span class="n">${esc(d.repo.name)}</span>
+    <span class="t">${total}${total >= 60 ? '+' : ''} commits / 24h · last ${ago(cdate(d.commits[0]) || d.repo.pushed_at)}</span>
+    <div class="spark" aria-hidden="true">${b.map(x => `<i class="${x ? '' : 'z'}" style="height:${x ? Math.max(12, x / max * 100) : 8}%"></i>`).join('')}</div>
+  </div>`;
+}
+
+function card(d){
+  if(d.error) return `<article class="card" style="--lc:${d.color}"><div class="top"><span class="node"></span><h3>${esc(d.entry)}</h3></div><p class="desc err">${esc(d.error)}</p></article>`;
+  const {repo, commits, release, full, entry, alts} = d;
+  const last = cdate(commits[0]) || repo.pushed_at;
+  const [cls, label] = state(last);
+  const prevSha = seen[full];
+  let isNew = !!prevSha;
+  const list = commits.slice(0, 5).map(c => {
+    if(c.sha === prevSha) isNew = false;
+    const msg = (c.commit.message || '').split('\n')[0];
+    return `<li><a href="${esc(c.html_url)}" title="${esc(msg)}">${isNew ? '<span class="new">NEW</span>' : ''}${esc(msg)}</a><time>${ago(cdate(c))}</time></li>`;
+  }).join('');
+  const [owner, name] = full.split('/');
+  const picker = !entry.includes('/') && alts.length > 1
+    ? `<label class="alt">Wrong repo? Pick another<select data-entry="${esc(entry)}">${alts.map(a => `<option ${a===full?'selected':''}>${esc(a)}</option>`).join('')}</select></label>` : '';
+  return `<article class="card" style="--lc:${d.color}">
+    <div class="top"><span class="node"></span><h3><a href="${esc(repo.html_url)}"><span class="owner">${esc(owner)}/</span>${esc(name)}</a></h3></div>
+    <p class="desc">${esc(repo.description || 'No description')}</p>
+    <span class="state ${cls}">● ${label} · ${ago(last)} ago</span>
+    ${repo.archived ? '<span class="state err" style="margin-left:6px">Archived</span>' : ''}
+    <div class="stats">
+      <div class="stat"><b>${fmt(repo.stargazers_count)}</b><span>stars</span></div>
+      <div class="stat"><b>${fmt(repo.forks_count)}</b><span>forks</span></div>
+      <div class="stat"><b>${fmt(repo.open_issues_count)}</b><span>issues</span></div>
+      <div class="stat" title="${release ? esc(release.tag_name) : ''}"><b>${release ? esc(release.tag_name) : '—'}</b><span>${release ? 'release ' + ago(release.published_at) : 'no release'}</span></div>
+    </div>
+    <ul class="commits">${list || '<li class="empty">No commits visible</li>'}</ul>
+    ${picker}
+  </article>`;
+}
+
+function timeline(data){
+  const all = data.filter(d => !d.error).flatMap(d => d.commits.slice(0, 15).map(c => ({d, c})));
+  all.sort((a,b) => new Date(cdate(b.c)) - new Date(cdate(a.c)));
+  if(!all.length) return '<div class="empty">No commits to show yet.</div>';
+  return all.slice(0, 12).map(({d, c}) => `<div class="ev" style="--lc:${d.color}">
+    <div class="r">${esc(d.repo.name)}</div>
+    <a href="${esc(c.html_url)}">${esc((c.commit.message || '').split('\n')[0])}</a>
+    <div class="w">${esc(c.author?.login || c.commit.author?.name || '')} · ${ago(cdate(c))} ago</div></div>`).join('');
+}
+
+async function refresh(){
+  $('refreshBtn').disabled = true; $('lastUp').textContent = 'Checking GitHub…';
+  const data = await Promise.all(entries.map((e, i) => loadOne(e, i).catch(err => ({entry: e, color: COLORS[i % COLORS.length], error: err.message}))));
+  $('strip').innerHTML = data.map(stripRow).join('');
+  $('cards').innerHTML = data.map(card).join('');
+  $('metro').innerHTML = timeline(data);
+  data.forEach(d => { if(!d.error && d.commits[0]) seen[d.full] = d.commits[0].sha; });
+  store.set('seen', seen);
+  const ok = !data.every(d => d.error);
+  $('lastUp').textContent = (ok ? 'LIVE · updated ' : 'Offline · tried ') + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  $('liveDot').classList.toggle('live', ok);
+  $('rate').textContent = rateInfo || 'API —';
+  $('refreshBtn').disabled = false;
+  schedule();
+}
+
+function schedule(){
+  clearTimeout(timer);
+  const ms = (token ? 1 : 10) * 60000;
+  nextAt = Date.now() + ms;
+  timer = setTimeout(refresh, ms);
+}
+setInterval(() => {
+  if(!nextAt) return;
+  const s = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
+  $('nextUp').textContent = `Next check ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}, 1000);
+
+$('refreshBtn').addEventListener('click', refresh);
+$('cards').addEventListener('change', e => {
+  const sel = e.target.closest('select[data-entry]'); if(!sel) return;
+  resolved[sel.dataset.entry] = sel.value; store.set('resolved', resolved); refresh();
+});
+$('repoInput').value = entries.join(', ');
+$('tokenInput').value = token;
+$('saveRepos').addEventListener('click', () => {
+  entries = $('repoInput').value.split(',').map(s => s.trim()).filter(Boolean);
+  if(!entries.length) entries = DEFAULTS.slice();
+  store.set('entries', entries); refresh();
+});
+$('saveToken').addEventListener('click', () => { token = $('tokenInput').value.trim(); store.set('token', token); refresh(); });
+document.addEventListener('visibilitychange', () => { if(!document.hidden && nextAt && Date.now() > nextAt) refresh(); });
+
+refresh();
+}
+</script>
+</body>
+</html>
