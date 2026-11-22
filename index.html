@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0712">
+<title>Port Pulse VI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: neon race control for three GTA VI port repos — every number is live GitHub data
+   IDEA: a race board — who is moving fastest right now
+   PICTURE: live leader hero + 7-day x 24-hour activity heatmaps
+   COLOUR and TYPE: violet-black, magenta / cyan / amber per repo; Chakra Petch + Inter
+   LAYOUT: hero, race board, heatmaps, milestone signals, repo cards, timeline */
+:root{color-scheme:dark;--bg:#0b0712;--panel:#140e1f;--panel2:#1b1429;--line:#2a2140;--ink:#f1ecfa;--mute:#9a8fb3;
+--a:#ff3ea5;--b:#22d3ee;--c:#ffb020;--ok:#3ef08a;--bad:#ff5d5d}
+*{box-sizing:border-box;min-width:0}
+html{background:var(--bg);scroll-padding-top:70px}
+body{margin:0;color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:clip;min-height:100vh;
+background:radial-gradient(900px 500px at 85% -10%,#3a0f4a66,transparent 60%),radial-gradient(700px 400px at -10% 25%,#0e3a4a44,transparent 60%),var(--bg)}
+.wrap{max-width:1100px;margin:auto;padding:0 max(4vw,14px) 40px}
+.H{font-family:'Chakra Petch',system-ui,sans-serif;font-weight:700}
+nav{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:10px 0;background:linear-gradient(var(--bg) 70%,transparent);scrollbar-width:none}
+nav a{flex:none;color:var(--mute);text-decoration:none;font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+nav a:first-child{color:#fff;background:linear-gradient(90deg,var(--a),#b44dff);border:0}
+.kick{font-size:12px;font-weight:600;color:var(--mute);display:flex;align-items:center;gap:8px;margin-top:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.dot.live{background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px #3ef08a00}0%{box-shadow:0 0 0 0 #3ef08a88}}
+h1{font:700 clamp(30px,8vw,54px)/1.02 'Chakra Petch',system-ui,sans-serif;margin:10px 0 8px;background:linear-gradient(90deg,#ff7ac6,var(--a) 40%,#b44dff);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px #ff3ea555)}
+h2{font:700 21px/1.2 'Chakra Petch',system-ui,sans-serif;margin:34px 0 4px}
+.lead{color:var(--mute);margin:0 0 14px;font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+button,input{font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:0 14px}
+button{cursor:pointer;font-weight:600}
+.btn{height:36px;min-height:36px;font-size:13px;background:linear-gradient(90deg,var(--a),#b44dff);border:0;color:#fff;box-shadow:0 0 16px #ff3ea555}
+.btn:disabled{opacity:.5}
+:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+/* hero */
+.hero{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.lead-card{position:relative;padding:18px;border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--lc) 22%,transparent),var(--panel) 60%);border:1px solid color-mix(in srgb,var(--lc) 50%,var(--line));overflow:hidden}
+.lead-card .lbl{font-size:12px;color:var(--mute);font-weight:600}
+.lead-card .big{font:700 clamp(26px,7vw,40px)/1.05 'Chakra Petch',system-ui,sans-serif;color:var(--lc);text-shadow:0 0 20px var(--lc);margin:4px 0}
+.lead-card p{margin:0;font-size:13.5px;color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kpi{padding:12px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.kpi b{display:block;font:700 24px/1.1 'Chakra Petch',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--mute)}
+/* race board */
+.race{display:grid;gap:10px}
+.lane{padding:14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--lc)}
+.lane-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center}
+.pos{font:700 22px 'Chakra Petch',system-ui,sans-serif;color:var(--lc);width:28px}
+.lane .n{font:700 17px 'Chakra Petch',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lane .sc{font:700 20px 'Chakra Petch',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.meter{height:8px;border-radius:4px;background:#ffffff10;margin:10px 0 12px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--lc);box-shadow:0 0 12px var(--lc);border-radius:4px;transition:width .8s}
+.lane-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ls{background:#ffffff07;border:1px solid var(--line);border-radius:10px;padding:7px 8px}
+.ls b{display:block;font:700 16px/1.15 'Chakra Petch',system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls span{font-size:11px;color:var(--mute)}
+.up{color:var(--ok);font-size:12px;font-family:Inter,sans-serif;font-weight:600}
+.gone{margin-top:8px;padding:8px 10px;border-radius:10px;background:#ff5d5d1a;border:1px solid #ff5d5d66;color:#ffb3b3;font-size:13px}
+/* heatmaps */
+.heats{display:grid;gap:12px}
+.heat{padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.heat .n{font:700 14px 'Chakra Petch',system-ui,sans-serif;color:var(--lc);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.heat .n span{color:var(--mute);font:500 12px Inter,sans-serif}
+.hg{display:grid;grid-template-columns:30px repeat(24,minmax(0,1fr));gap:2px;align-items:center}
+.hg i{aspect-ratio:1;border-radius:2px;background:var(--lc)}
+.hg em{font-style:normal;font-size:10px;color:var(--mute)}
+.hx{display:grid;grid-template-columns:30px repeat(4,minmax(0,1fr));font-size:10px;color:var(--mute);margin-top:4px}
+/* signals */
+.sig{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:10px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+th{font:700 12px 'Chakra Petch',system-ui,sans-serif;color:var(--lc,var(--mute))}
+td b{display:inline-block;min-width:26px;padding:2px 6px;border-radius:6px;font-variant-numeric:tabular-nums}
+td b.on{background:color-mix(in srgb,var(--lc) 25%,transparent);color:var(--ink);box-shadow:0 0 8px color-mix(in srgb,var(--lc) 40%,transparent)}
+td b.off{color:#5c5373}
+.ex{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.ex li{font-size:12.5px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ex li a{color:var(--ink);text-decoration:none}
+.ex li i{font-style:normal;font-weight:700;color:var(--lc)}
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px}
+.card{position:relative;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:16px;overflow:hidden}
+.card::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:var(--lc);box-shadow:0 0 14px var(--lc)}
+.card h3{margin:0;font:700 17px/1.2 'Chakra Petch',system-ui,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card h3 a{color:inherit;text-decoration:none}.owner{color:var(--mute);font-weight:500}
+.desc{color:var(--mute);font-size:13px;margin:6px 0 10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.links a{font-size:12px;color:var(--ink);text-decoration:none;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:#ffffff07}
+.commits{list-style:none;margin:0;padding:0}
+.commits li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.commits a{color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.commits time{color:var(--mute);font-size:12px;white-space:nowrap}
+.new{display:inline-block;background:var(--c);color:#1a1000;border-radius:5px;padding:0 5px;font-size:10px;font-weight:800;margin-right:6px;vertical-align:1px}
+/* timeline */
+.tl{position:relative;padding-left:30px}
+.tl::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--a),var(--b),var(--c));box-shadow:0 0 10px #ff3ea566;border-radius:2px}
+.ev{position:relative;padding:10px 12px;margin-bottom:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.ev::before{content:"";position:absolute;left:-27px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:3px solid var(--lc);box-shadow:0 0 10px var(--lc)}
+.ev .r{font:700 12px 'Chakra Petch',system-ui,sans-serif;color:var(--lc)}
+.ev a{display:block;color:var(--ink);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.ev .w{font-size:12px;color:var(--mute)}
+.warn{margin-top:30px;padding:14px 16px;border-radius:14px;border:1px solid #ffb02066;background:#ffb02012;font-size:13.5px}
+.warn b{color:var(--c)}
+details{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.row input{flex:1 1 220px}
+.note{font-size:13px;color:var(--mute)}
+.empty{color:var(--mute);padding:10px 0}
+.toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,140%);max-width:min(92vw,460px);padding:12px 16px;border-radius:14px;background:var(--panel2);border:1px solid var(--a);box-shadow:0 0 24px #ff3ea566;font-size:14px;transition:transform .35s;z-index:9}
+.toast.show{transform:translate(-50%,0)}
+footer{margin-top:20px;font-size:12px;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){.dot.live{animation:none}.meter i,.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav aria-label="Sections"><a href="#top">Live</a><a href="#race">Race</a><a href="#heat">Heatmaps</a><a href="#signals">Milestones</a><a href="#repos">Repos</a><a href="#feed">Feed</a></nav>
+
+  <header id="top">
+    <div class="kick"><span class="dot" id="liveDot"></span><span id="lastUp">Connecting to GitHub…</span></div>
+    <h1>Port Pulse VI</h1>
+    <p class="lead">Live race between the three GTA VI PC projects: Xbox2Windows, Leonida and xcl. Every number comes straight from GitHub, nothing is typed in by hand.</p>
+    <div class="chips">
+      <span class="chip" id="nextUp">Next check —</span>
+      <span class="chip" id="rate">API —</span>
+      <button class="btn" id="refreshBtn">Refresh now</button>
+    </div>
+    <div class="hero">
+      <div class="lead-card" id="leader" style="--lc:var(--a)"><div class="lbl">Moving fastest right now</div><div class="big">—</div><p>Waiting for data…</p></div>
+      <div class="kpis">
+        <div class="kpi"><b id="k24">—</b><span>commits, last 24h (all 3)</span></div>
+        <div class="kpi"><b id="k7">—</b><span>commits, last 7 days</span></div>
+        <div class="kpi"><b id="kdev">—</b><span>people committing this week</span></div>
+        <div class="kpi"><b id="kstar">—</b><span>stars combined</span></div>
+      </div>
+    </div>
+  </header>
+
+  <section id="race">
+    <h2>The race</h2>
+    <p class="lead">Ranked by activity score: commits in the last 24h and 7 days, merged pull requests and active contributors. This measures momentum, not how close a project is to running the game.</p>
+    <div class="race" id="raceList"></div>
+  </section>
+
+  <section id="heat">
+    <h2>When they work</h2>
+    <p class="lead">Commits per hour over the last 7 days. Brighter means busier. Your local time.</p>
+    <div class="heats" id="heats"></div>
+  </section>
+
+  <section id="signals">
+    <h2>Milestone signals</h2>
+    <p class="lead">Keywords found in the last 7 days of commit messages. A hit means developers are working on that area. It does not prove it works.</p>
+    <div class="sig" id="sigTable"></div>
+    <ul class="ex" id="sigEx"></ul>
+  </section>
+
+  <section id="repos">
+    <h2>Repos</h2>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section id="feed">
+    <h2>Live feed</h2>
+    <div class="tl" id="metro"><div class="empty">Loading…</div></div>
+  </section>
+
+  <div class="warn"><b>There is no download.</b> None of these repos hosts the game or its files. Sites, videos or Discord posts offering a ready-to-play GTA VI for PC are scams and often carry malware.</div>
+
+  <details>
+    <summary>Faster updates (optional token)</summary>
+    <p class="note">Without a token GitHub allows 60 requests an hour, so this checks every 10 minutes. A free token (GitHub → Settings → Developer settings → Fine-grained token, no permissions) makes it check every minute. It stays in this browser only.</p>
+    <div class="row"><input id="tokenInput" type="password" placeholder="Optional GitHub token" aria-label="GitHub token"><button id="saveToken">Save</button></div>
+  </details>
+  <footer>Fan-made. Not affiliated with Rockstar Games or Take-Two. Data: GitHub public API. Star changes are counted from your first visit on this device.</footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+{
+const REPOS = [
+  {full:'R0Y00/Xbox2Windows', short:'Xbox2Windows', color:'var(--a)'},
+  {full:'ItsNotRexed/Leonida', short:'Leonida', color:'var(--b)'},
+  {full:'ivall/xcl', short:'xcl', color:'var(--c)'}
+];
+const SIGNALS = [
+  ['Boot / launch', /\b(boot|boots|launch|startup|entry ?point|main loop|runs?)\b/i],
+  ['Title / menu', /\b(title|menu|splash|frontend|loading screen)\b/i],
+  ['In-game', /\b(in-game|ingame|gameplay|world|player|ped|vehicle|spawn)\b/i],
+  ['Graphics', /\b(shader|dxil|spir-?v|rdna|d3d12|render|gpu|texture|pso)\b/i],
+  ['Audio', /\b(audio|xaudio|xma|sound)\b/i],
+  ['Input', /\b(input|controller|gamepad|keyboard|mouse)\b/i],
+  ['CPU / recomp', /\b(cpu|recomp|avx|sse|vex|x64|lift|lower|jit|instruction)\b/i],
+  ['Crash fixes', /\b(crash|segfault|hang|deadlock|fix)\b/i]
+];
+const store = {
+  get(k,d){try{const v=localStorage.getItem('pp6_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('pp6_'+k,JSON.stringify(v))}catch(e){}}
+};
+let seen = store.get('seen', {}), base = store.get('base', {}), lastKnown = store.get('known', {});
+let token = store.get('token', '');
+let timer = null, nextAt = 0, rateInfo = '', first = true;
+const etags = {};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago = iso => { if(!iso) return '—'; const s=(Date.now()-new Date(iso))/1000;
+  if(s<60) return 'now'; if(s<3600) return Math.floor(s/60)+'m'; if(s<86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d'; };
+const fmt = n => n>=1000 ? (n/1000).toFixed(1).replace(/\.0$/,'')+'k' : String(n ?? 0);
+const cdate = c => c.commit?.committer?.date || c.commit?.author?.date;
+const msg1 = c => (c.commit?.message || '').split('\n')[0];
+const hms = d => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+async function gh(path){
+  const headers = {'Accept':'application/vnd.github+json'};
+  if(token) headers.Authorization = 'Bearer ' + token;
+  if(etags[path]) headers['If-None-Match'] = etags[path].etag;
+  let r;
+  try{ r = await fetch('https://api.github.com' + path, {headers, cache:'no-store'}); }
+  catch(e){ throw Object.assign(new Error("Can't reach GitHub"), {net:true}); }
+  const left = r.headers.get('x-ratelimit-remaining'), lim = r.headers.get('x-ratelimit-limit'), reset = r.headers.get('x-ratelimit-reset');
+  if(left !== null){ rateInfo = `API ${left}/${lim}`; if(left === '0' && reset) rateInfo += ` · resets ${hms(new Date(reset*1000))}`; }
+  if(r.status === 304 && etags[path]) return etags[path].body;
+  if(!r.ok) throw Object.assign(new Error(r.status===404 ? 'gone' : r.status===451 ? 'gone' : r.status===403||r.status===429 ? 'Rate limit hit, add a token below' : 'GitHub error '+r.status), {status:r.status});
+  const body = await r.json();
+  const et = r.headers.get('etag'); if(et) etags[path] = {etag:et, body};
+  return body;
+}
+
+async function load(R){
+  const since = new Date(Date.now() - 7*864e5).toISOString();
+  try{
+    const [repo, commits, pulls, rel] = await Promise.all([
+      gh(`/repos/${R.full}`),
+      gh(`/repos/${R.full}/commits?since=${since}&per_page=100`).catch(() => []),
+      gh(`/repos/${R.full}/pulls?state=closed&sort=updated&direction=desc&per_page=50`).catch(() => []),
+      gh(`/repos/${R.full}/releases?per_page=1`).catch(() => [])
+    ]);
+    const cs = Array.isArray(commits) ? commits : [];
+    const now = Date.now();
+    const c24 = cs.filter(c => now - new Date(cdate(c)) < 864e5).length;
+    const devs = new Set(cs.map(c => c.author?.login || c.commit?.author?.name)).size;
+    const prs = (Array.isArray(pulls) ? pulls : []).filter(p => p.merged_at && now - new Date(p.merged_at) < 7*864e5).length;
+    if(!base[R.full]) { base[R.full] = {stars: repo.stargazers_count, at: new Date().toISOString()}; store.set('base', base); }
+    lastKnown[R.full] = {stars: repo.stargazers_count, forks: repo.forks_count, at: new Date().toISOString()}; store.set('known', lastKnown);
+    return {...R, repo, cs, c24, c7: cs.length, full7: cs.length >= 100, devs, prs, rel: rel[0]};
+  }catch(e){
+    return {...R, error: e.message, gone: e.message === 'gone'};
+  }
+}
+
+const score = d => d.error ? 0 : d.c24*3 + d.c7 + d.prs*4 + d.devs*6;
+
+function raceLane(d, i, max){
+  if(d.error){
+    const k = lastKnown[d.full];
+    return `<div class="lane" style="--lc:${d.color}"><div class="lane-top"><span class="pos">–</span><span class="n">${esc(d.short)}</span><span class="sc">—</span></div>
+      <div class="gone">${d.gone ? `Repo not reachable. It may have been taken down, renamed or made private.${k ? ` Last seen ${new Date(k.at).toLocaleString()} with ${fmt(k.stars)} stars.` : ''}` : esc(d.error)}</div></div>`;
+  }
+  const s = score(d), pct = max ? Math.round(s/max*100) : 0;
+  const b = base[d.full], gain = b ? d.repo.stargazers_count - b.stars : 0;
+  return `<div class="lane" style="--lc:${d.color}">
+    <div class="lane-top"><span class="pos">${i+1}</span><span class="n">${esc(d.short)}</span><span class="sc">${s}</span></div>
+    <div class="meter"><i style="width:${pct}%"></i></div>
+    <div class="lane-stats">
+      <div class="ls"><b>${d.c24}</b><span>commits 24h</span></div>
+      <div class="ls"><b>${d.c7}${d.full7?'+':''}</b><span>commits 7d</span></div>
+      <div class="ls"><b>${d.prs}</b><span>PRs merged 7d</span></div>
+      <div class="ls"><b>${d.devs}</b><span>contributors 7d</span></div>
+      <div class="ls"><b>${fmt(d.repo.stargazers_count)} ${gain>0?`<span class="up">+${gain}</span>`:''}</b><span>stars</span></div>
+      <div class="ls"><b>${ago(cdate(d.cs[0]) || d.repo.pushed_at)}</b><span>last commit</span></div>
+    </div></div>`;
+}
+
+function heatmap(d){
+  if(d.error) return '';
+  const g = Array.from({length:7}, () => Array(24).fill(0));
+  const today = new Date(); today.setHours(0,0,0,0);
+  d.cs.forEach(c => { const t = new Date(cdate(c)); const day = Math.floor((today - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+    if(day >= 0 && day < 7) g[6-day][t.getHours()]++; });
+  const max = Math.max(1, ...g.flat());
+  const days = Array.from({length:7}, (_, i) => { const x = new Date(today - (6-i)*864e5); return i===6 ? 'Today' : x.toLocaleDateString([], {weekday:'short'}); });
+  const peak = g.flat().indexOf(Math.max(...g.flat())) % 24;
+  return `<div class="heat" style="--lc:${d.color}"><div class="n">${esc(d.short)}<span>busiest around ${String(peak).padStart(2,'0')}:00</span></div>
+    <div class="hg">${g.map((row, r) => `<em>${days[r].slice(0,3)}</em>` + row.map(v => `<i style="opacity:${v ? (0.25 + 0.75*v/max).toFixed(2) : 0.07}" title="${v} commits"></i>`).join('')).join('')}</div>
+    <div class="hx"><span></span><span>00</span><span>06</span><span>12</span><span>18</span></div></div>`;
+}
+
+function signals(data){
+  const ok = data.filter(d => !d.error);
+  if(!ok.length) return ['<div class="empty" style="padding:14px">No data yet.</div>', ''];
+  const hits = SIGNALS.map(([name, re]) => ({name, per: ok.map(d => { const m = d.cs.filter(c => re.test(msg1(c))); return {d, n: m.length, ex: m[0]}; })}));
+  const table = `<table><thead><tr><th>Area</th>${ok.map(d => `<th style="--lc:${d.color}">${esc(d.short)}</th>`).join('')}</tr></thead><tbody>
+    ${hits.map(h => `<tr><td>${h.name}</td>${h.per.map(p => `<td style="--lc:${p.d.color}"><b class="${p.n?'on':'off'}">${p.n||'·'}</b></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const ex = hits.filter(h => /Boot|Title|In-game/.test(h.name)).flatMap(h => h.per.filter(p => p.ex).map(p =>
+    `<li style="--lc:${p.d.color}"><i>${esc(p.d.short)} · ${h.name}:</i> <a href="${esc(p.ex.html_url)}">${esc(msg1(p.ex))}</a></li>`)).slice(0, 6).join('');
+  return [table, ex];
+}
+
+function card(d){
+  if(d.error) return `<article class="card" style="--lc:${d.color}"><h3>${esc(d.full)}</h3><p class="desc">${d.gone ? 'Not reachable right now.' : esc(d.error)}</p></article>`;
+  const [owner, name] = d.full.split('/');
+  const prev = seen[d.full]; let isNew = !!prev;
+  const list = d.cs.slice(0, 5).map(c => { if(c.sha === prev) isNew = false;
+    return `<li><a href="${esc(c.html_url)}" title="${esc(msg1(c))}">${isNew?'<span class="new">NEW</span>':''}${esc(msg1(c))}</a><time>${ago(cdate(c))}</time></li>`; }).join('');
+  return `<article class="card" style="--lc:${d.color}">
+    <h3><a href="${esc(d.repo.html_url)}"><span class="owner">${esc(owner)}/</span>${esc(name)}</a></h3>
+    <p class="desc">${esc(d.repo.description || 'No description')}</p>
+    <div class="links"><a href="${esc(d.repo.html_url)}#readme">README</a><a href="${esc(d.repo.html_url)}/commits">Commits</a><a href="${esc(d.repo.html_url)}/issues">${fmt(d.repo.open_issues_count)} issues</a>${d.rel?`<a href="${esc(d.rel.html_url)}">${esc(d.rel.tag_name)}</a>`:''}</div>
+    <ul class="commits">${list || '<li class="empty">No commits in the last 7 days</li>'}</ul></article>`;
+}
+
+function feed(data){
+  const all = data.filter(d => !d.error).flatMap(d => d.cs.slice(0, 20).map(c => ({d, c})));
+  all.sort((a, b) => new Date(cdate(b.c)) - new Date(cdate(a.c)));
+  if(!all.length) return '<div class="empty">No commits to show.</div>';
+  return all.slice(0, 15).map(({d, c}) => `<div class="ev" style="--lc:${d.color}"><div class="r">${esc(d.short)}</div>
+    <a href="${esc(c.html_url)}">${esc(msg1(c))}</a><div class="w">${esc(c.author?.login || c.commit?.author?.name || '')} · ${ago(cdate(c))} ago</div></div>`).join('');
+}
+
+function toast(t){ const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 6000); }
+
+async function refresh(){
+  $('refreshBtn').disabled = true; $('lastUp').textContent = 'Checking GitHub…';
+  const data = await Promise.all(REPOS.map(load));
+  const ranked = [...data].sort((a, b) => score(b) - score(a));
+  const max = Math.max(1, ...data.map(score));
+  const ok = data.filter(d => !d.error);
+
+  if(data.every(d => d.error && !d.gone) && data[0].error === "Can't reach GitHub"){
+    $('lastUp').textContent = "Can't reach GitHub. Open this page in Chrome itself.";
+  }
+
+  const L = ranked.find(d => !d.error);
+  if(L){
+    const second = ranked.filter(d => !d.error)[1];
+    $('leader').style.setProperty('--lc', L.color);
+    $('leader').innerHTML = `<div class="lbl">Moving fastest right now</div><div class="big">${esc(L.short)}</div>
+      <p>${L.c24} commits in the last 24 hours from ${L.devs} contributor${L.devs===1?'':'s'} this week${second ? `, ahead of ${esc(second.short)} (${score(L)} vs ${score(second)} points)` : ''}.</p>`;
+  }
+  $('k24').textContent = ok.reduce((a, d) => a + d.c24, 0);
+  $('k7').textContent = ok.reduce((a, d) => a + d.c7, 0) + (ok.some(d => d.full7) ? '+' : '');
+  $('kdev').textContent = new Set(ok.flatMap(d => d.cs.map(c => c.author?.login || c.commit?.author?.name))).size;
+  $('kstar').textContent = fmt(ok.reduce((a, d) => a + d.repo.stargazers_count, 0));
+
+  $('raceList').innerHTML = ranked.map((d, i) => raceLane(d, i, max)).join('');
+  $('heats').innerHTML = data.map(heatmap).join('');
+  const [t, ex] = signals(data); $('sigTable').innerHTML = t; $('sigEx').innerHTML = ex;
+  $('cards').innerHTML = data.map(card).join('');
+  $('metro').innerHTML = feed(data);
+
+  let fresh = 0;
+  ok.forEach(d => { const prev = seen[d.full]; if(prev && d.cs[0] && d.cs[0].sha !== prev){ const i = d.cs.findIndex(c => c.sha === prev); fresh += i < 0 ? d.cs.length : i; } if(d.cs[0]) seen[d.full] = d.cs[0].sha; });
+  store.set('seen', seen);
+  if(fresh && !first){ toast(`${fresh} new commit${fresh>1?'s':''} just landed`); }
+  else if(fresh && first){ toast(`${fresh} new commit${fresh>1?'s':''} since your last visit`); }
+  document.title = (fresh ? `(${fresh}) ` : '') + 'Port Pulse VI';
+  first = false;
+
+  $('lastUp').textContent = ok.length ? 'LIVE · updated ' + hms(new Date()) : $('lastUp').textContent;
+  $('liveDot').classList.toggle('live', ok.length > 0);
+  $('rate').textContent = rateInfo || 'API —';
+  $('refreshBtn').disabled = false;
+  schedule();
+}
+
+function schedule(){ clearTimeout(timer); const ms = (token ? 1 : 10) * 60000; nextAt = Date.now() + ms; timer = setTimeout(refresh, ms); }
+setInterval(() => { if(!nextAt) return; const s = Math.max(0, Math.round((nextAt - Date.now())/1000));
+  $('nextUp').textContent = `Next check ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }, 1000);
+
+$('refreshBtn').addEventListener('click', refresh);
+$('tokenInput').value = token;
+$('saveToken').addEventListener('click', () => { token = $('tokenInput').value.trim(); store.set('token', token); refresh(); });
+document.addEventListener('visibilitychange', () => { if(!document.hidden){ document.title = 'Port Pulse VI'; if(nextAt && Date.now() > nextAt) refresh(); } });
+
+refresh();
+}
+</script>
+</body>
+</html>
